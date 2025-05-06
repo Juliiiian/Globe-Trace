@@ -1,73 +1,92 @@
 <script lang="ts">
-	import { setStore } from '$src/lib/Store.svelte';
-	import type { Hop, HopEvent } from '$src/lib/types';
-	import { invoke } from '@tauri-apps/api/core';
-	import { listen } from '@tauri-apps/api/event';
-	import { onDestroy } from 'svelte';
+	import { getCurrentTrace, setStore } from '$src/lib/Store';
+	import {
+		Card,
+		CardContent,
+		CardDescription,
+		CardHeader,
+		CardTitle
+	} from '$src/lib/components/ui/card';
+	import { Tabs, TabsContent, TabsList, TabsTrigger } from '$components/ui/tabs';
+	import { cn } from '$src/lib/utils/utils';
+	import HopsTable from '$src/lib/components/HopsTable.svelte';
+	import TraceForm from '$src/lib/components/TraceForm.svelte';
 
-	const traces = setStore([]);
+	const curTrace = getCurrentTrace();
 
-	let ip = $state('');
-	let error = $state('');
-
-	const listener = listen<HopEvent>('hop', (event) => {
-		console.log(event);
-
-		if (traces.currentTraceId === null) {
-			return;
-		}
-
-		const hop = { ...event.payload, geo: null } as Hop;
-
-		traces.addHop(traces.currentTraceId, hop);
-	});
-
-	async function greet(event: Event) {
-		event.preventDefault();
-		// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-		await invoke('trace', { ip, hops: 200 });
-		traces.startTrace({
-			dest_ip: ip,
-			max_hops: 200,
-			name: 'Tests',
-			send_rate: 1,
-			receive_timeout: 10,
-			trace_timeout: 30
-		});
-	}
-
-	onDestroy(() => {
-		listener.then((unlisten) => unlisten());
-	});
+	let activeTab = $state('table');
 </script>
 
-<main class="m-0 flex size-full flex-col justify-center p-0 text-center">
-	<h1>Starte Trace</h1>
+<main class="grid-bg m-0 min-h-screen w-full p-0">
+	<div class="container mx-auto max-w-[1560px] py-8">
+		<div class="flex flex-col space-y-6">
+			<div class="text-center">
+				<h1
+					class="mb-2 bg-gradient-to-r from-primary via-primary/80 to-accent bg-clip-text text-4xl font-bold text-transparent"
+				>
+					Globe Tracer
+				</h1>
+				<p class="text-muted-foreground">Visual network path tracer with 3D globe visualization</p>
+			</div>
 
-	<form class="row" onsubmit={greet}>
-		<input id="greet-input" placeholder="Enter a IP..." bind:value={ip} />
-		<button type="submit" class="p-2">Greet</button>
-	</form>
-	{#each traces.data as trace (trace.id)}
-		<div>
-			Hops:
-			<div>
-				{#each trace.hops as hop}
-					<div class="flex flex-row justify-between">
-						<div>{hop.seq}</div>
-						<div>{hop.host_name}</div>
-						<div>{hop.ip_addr}</div>
-						<div>{hop.node_type}</div>
-						<div>{hop.rtt}</div>
-						<div>{hop.ttl}</div>
-						<div>Geo:</div>
-						<div>{hop.geo?.country}</div>
-						<div>{hop.geo?.city}</div>
-						<div>{hop.geo?.latitude}</div>
-						<div>{hop.geo?.longitude}</div>
-					</div>
-				{/each}
+			<div class="grid grid-cols-1 gap-6 lg:grid-cols-5">
+				<div class="space-y-6 lg:col-span-2">
+					<TraceForm></TraceForm>
+					<Card class=" lg:hidden">
+						<CardHeader class="pb-3">
+							<CardTitle>View Options</CardTitle>
+						</CardHeader>
+						<CardContent>
+							<Tabs bind:value={activeTab}>
+								<TabsList class="w-full">
+									<TabsTrigger value="table" class="flex-1">Table</TabsTrigger>
+									<TabsTrigger value="globe" class="flex-1">Globe</TabsTrigger>
+								</TabsList>
+							</Tabs>
+						</CardContent>
+					</Card>
+
+					<Card
+						class={cn(activeTab === 'table' || !activeTab ? 'block lg:block' : 'hidden lg:block')}
+					>
+						<CardHeader class="pb-3">
+							<CardTitle>Hop Information</CardTitle>
+							<CardDescription>Details of each network hop</CardDescription>
+						</CardHeader>
+						<CardContent class="p-0">
+							{#if $curTrace != null}
+								<HopsTable trace={$curTrace} />
+							{:else}
+								<div class="flex h-full items-center justify-center p-6 text-muted-foreground">
+									No trace data available. Start a trace to see results.
+								</div>
+							{/if}
+						</CardContent>
+					</Card>
+				</div>
+
+				<div
+					class={cn(
+						activeTab === 'globe' || !activeTab ? 'block' : 'hidden lg:block',
+						'lg:col-span-3'
+					)}
+				>
+					<Card class="overflow-hidden ">
+						<CardHeader class="pb-3">
+							<CardTitle>3D Visualization</CardTitle>
+							<CardDescription>Trace route path on interactive globe</CardDescription>
+						</CardHeader>
+						<CardContent class="h-[600px] p-0">
+							<!-- <Globe {traceData} isLoading={isTracing} /> -->
+						</CardContent>
+					</Card>
+				</div>
+			</div>
+
+			<div class="text-center text-xs text-muted-foreground">
+				<p>© {new Date().getFullYear()} Globe Tracer - Visualize network paths across the world</p>
+				<p class="mt-1">Drag to rotate | Scroll to zoom | Double-click to reset view</p>
 			</div>
 		</div>
-	{/each}
+	</div>
 </main>

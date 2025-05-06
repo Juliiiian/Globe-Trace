@@ -47,7 +47,6 @@ fn trace(app: AppHandle, ip: String, hops: u8) {
     // Spawn a single thread to handle the traceroute and progress updates
     thread::spawn(move || {
         eprintln!("Traceroute thread started");
-
         // Spawn another thread to run the traceroute
         let trace_handle = thread::spawn(move || tracer.trace());
 
@@ -66,7 +65,7 @@ fn trace(app: AppHandle, ip: String, hops: u8) {
                 "hop": msg.hop,
                 "ttl": msg.ttl,
                 "node_type": format!("{:?}", msg.node_type),
-                "rtt": format!("{:?}", msg.rtt),
+                "rtt": msg.rtt.as_millis(),
             });
 
             if let Err(e) = app.emit("hop", hop_data) {
@@ -80,8 +79,14 @@ fn trace(app: AppHandle, ip: String, hops: u8) {
                 eprintln!("Traceroute completed successfully");
 
                 // Emit the final result
-                if let Err(e) = app.emit("trace_complete", format!("Trace completed: {:?}", result))
-                {
+                if let Err(e) = app.emit(
+                    "trace_complete",
+                    json!({
+                        "status": format!("{:?}", result.status),
+                        "probe_time": result.probe_time.as_millis(),
+
+                    }),
+                ) {
                     eprintln!("Failed to emit trace_complete event: {}", e);
                 }
             }
@@ -96,11 +101,6 @@ fn trace(app: AppHandle, ip: String, hops: u8) {
             Err(e) => {
                 eprintln!("Traceroute thread panicked: {:?}", e);
             }
-        }
-
-        // Emit finish_trace event
-        if let Err(e) = app.emit("finish_trace", "Trace process finished") {
-            eprintln!("Failed to emit finish_trace event: {}", e);
         }
 
         eprintln!("Traceroute thread finished");

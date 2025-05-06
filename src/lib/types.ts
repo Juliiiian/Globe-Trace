@@ -19,6 +19,7 @@ export type Trace = {
 	send_rate: number;
 	receive_timeout: number;
 	trace_timeout: number;
+	is_finished: boolean;
 	hops: Hop[];
 };
 
