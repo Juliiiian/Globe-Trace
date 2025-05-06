@@ -13,10 +13,12 @@ function Store(initData: Trace[]) {
 		traces: Trace[];
 		error: string | null;
 		currentTraceId: string | null;
+		api_error: string | null;
 	}> = writable({
 		traces: initData,
 		error: null,
-		currentTraceId: null
+		currentTraceId: null,
+		api_error: null
 	});
 
 	const startTrace = (trace: {
@@ -45,6 +47,7 @@ function Store(initData: Trace[]) {
 				}
 			];
 			data.currentTraceId = id;
+			data.error = null;
 			return data;
 		});
 	};
@@ -54,14 +57,30 @@ function Store(initData: Trace[]) {
 			const res = await fetch(`https://api.hackertarget.com/geoip/?q=${hop.ip_addr}&output=json`);
 
 			if (res.ok) {
-				const geo = await res.json();
+				const geo = await res.text();
 
-				hop.geo = geo;
+				console.log(geo);
+
+				if (geo.includes('API count exceeded')) {
+					update((data) => {
+						data.api_error = 'Geo API: count exceeded';
+						return data;
+					});
+				} else {
+					hop.geo = JSON.parse(geo);
+				}
 			} else {
-				console.log('Error fetching geo data:', res.statusText);
+				update((data) => {
+					data.api_error = 'Geo API: ' + res.statusText;
+					return data;
+				});
 			}
 		} catch (error) {
 			console.log(error);
+			update((data) => {
+				data.api_error = 'Geo API: not reachable';
+				return data;
+			});
 		}
 
 		update((data) => {

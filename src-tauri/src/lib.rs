@@ -1,13 +1,22 @@
 use serde_json::json;
 use std::net::IpAddr;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::thread;
+use tauri::State;
 use tauri::{AppHandle, Emitter};
 use tracert::trace::Tracer;
 
+struct AppState {
+    cancel_flag: Arc<AtomicBool>,
+}
+
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 #[tauri::command]
-fn trace(app: AppHandle, ip: String, hops: u8) {
+fn trace(app: AppHandle, ip: String, hops: u8, state: State<AppState>) {
     eprintln!("Starting trace command with IP: {} and hops: {}", ip, hops);
+
+    state.cancel_flag.store(false, Ordering::Relaxed);
 
     let dst_ip: IpAddr = match ip.parse() {
         Ok(ip) => ip,
@@ -38,26 +47,30 @@ fn trace(app: AppHandle, ip: String, hops: u8) {
     };
 
     tracer.set_max_hop(hops);
-    tracer.set_send_rate(std::time::Duration::from_secs(2)); // Increase timeout to 2 seconds
-    tracer.set_receive_timeout(std::time::Duration::from_secs(15)); // Increase timeout to 2 seconds
-    tracer.set_trace_timeout(std::time::Duration::from_secs(60)); // Increase timeout to 2 seconds
+    tracer.set_send_rate(std::time::Duration::from_secs(2));
+    tracer.set_receive_timeout(std::time::Duration::from_secs(15));
+    tracer.set_trace_timeout(std::time::Duration::from_secs(60));
 
     let rx = tracer.get_progress_receiver();
+    let cancel_flag = Arc::clone(&state.cancel_flag);
 
     // Spawn a single thread to handle the traceroute and progress updates
     thread::spawn(move || {
         eprintln!("Traceroute thread started");
-        // Spawn another thread to run the traceroute
+
         let trace_handle = thread::spawn(move || tracer.trace());
 
-        // Emit progress for each hop
         while let Ok(msg) = rx.lock().unwrap().recv() {
+            if cancel_flag.load(Ordering::Relaxed) {
+                eprintln!("Trace cancelled by user.");
+                break;
+            }
+
             eprintln!(
                 "Received hop: Seq: {}, IP: {}, Hop: {:?}, RTT: {:?}",
                 msg.seq, msg.ip_addr, msg.hop, msg.rtt
             );
 
-            // Create a JSON object for the hop data
             let hop_data = json!({
                 "seq": msg.seq,
                 "host_name": msg.seq,
@@ -73,33 +86,36 @@ fn trace(app: AppHandle, ip: String, hops: u8) {
             }
         }
 
-        // Wait for the traceroute to complete
-        match trace_handle.join() {
-            Ok(Ok(result)) => {
-                eprintln!("Traceroute completed successfully");
+        if !cancel_flag.load(Ordering::Relaxed) {
+            match trace_handle.join() {
+                Ok(Ok(result)) => {
+                    eprintln!("Traceroute completed successfully");
 
-                // Emit the final result
-                if let Err(e) = app.emit(
-                    "trace_complete",
-                    json!({
-                        "status": format!("{:?}", result.status),
-                        "probe_time": result.probe_time.as_millis(),
+                    if let Err(e) = app.emit(
+                        "trace_complete",
+                        json!({
+                            "status": format!("{:?}", result.status),
+                            "probe_time": result.probe_time.as_millis(),
+                        }),
+                    ) {
+                        eprintln!("Failed to emit trace_complete event: {}", e);
+                    }
+                }
+                Ok(Err(e)) => {
+                    eprintln!("Traceroute failed with error: {}", e);
 
-                    }),
-                ) {
-                    eprintln!("Failed to emit trace_complete event: {}", e);
+                    if let Err(err) = app.emit("trace_error", format!("Trace error: {}", e)) {
+                        eprintln!("Failed to emit trace_error event: {}", err);
+                    }
+                }
+                Err(e) => {
+                    eprintln!("Traceroute thread panicked: {:?}", e);
                 }
             }
-            Ok(Err(e)) => {
-                eprintln!("Traceroute failed with error: {}", e);
-
-                // Emit an error if the traceroute fails
-                if let Err(err) = app.emit("trace_error", format!("Trace error: {}", e)) {
-                    eprintln!("Failed to emit trace_error event: {}", err);
-                }
-            }
-            Err(e) => {
-                eprintln!("Traceroute thread panicked: {:?}", e);
+        } else {
+            eprintln!("Traceroute cancelled by user.");
+            if let Err(e) = app.emit("trace_cancelled", "Trace cancelled") {
+                eprintln!("Failed to emit trace_cancelled event: {}", e);
             }
         }
 
@@ -107,11 +123,20 @@ fn trace(app: AppHandle, ip: String, hops: u8) {
     });
 }
 
+#[tauri::command]
+fn cancel_trace(state: State<AppState>) {
+    state.cancel_flag.store(true, Ordering::Relaxed);
+    eprintln!("Trace cancellation requested.");
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .manage(AppState {
+            cancel_flag: Arc::new(AtomicBool::new(false)),
+        })
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![trace])
+        .invoke_handler(tauri::generate_handler![trace, cancel_trace])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

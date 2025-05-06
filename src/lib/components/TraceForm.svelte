@@ -33,8 +33,11 @@
 		$traces.error = event.payload;
 	});
 
+	const listenerCancel = listen<string>('trace_cancelled', (event) => {
+		$traces.currentTraceId = null;
+	});
+
 	async function startTrace(event: Event) {
-		event.preventDefault();
 		traces.startTrace({
 			dest_ip: ip,
 			max_hops: 200,
@@ -45,9 +48,19 @@
 		});
 		await invoke('trace', { ip, hops: 200 });
 	}
+
+	async function cancelTrace(event: Event) {
+		if ($traces.currentTraceId === null) {
+			return;
+		}
+		traces.finishTrace($traces.currentTraceId);
+		await invoke('cancel_trace');
+	}
+
 	onDestroy(() => {
 		listenerHop.then((unlisten) => unlisten());
 		listenerError.then((unlisten) => unlisten());
+		listenerCancel.then((unlisten) => unlisten());
 	});
 </script>
 
@@ -61,6 +74,14 @@
 		{#if $traces.error}
 			<p class="mt-2 text-sm text-red-500">{$traces.error}</p>
 		{/if}
-		<Button type="submit" class="mt-4 w-full" onclick={startTrace}>Start Trace</Button>
+		{#if $traces.currentTraceId === null}
+			<Button class="mt-4 w-full" onclick={startTrace} variant="secondary">Start Trace</Button>
+		{:else}
+			<div class="flex gap-2">
+				<Button class="mt-4 w-full" variant="secondary">Tracing...</Button>
+				<Button class="mt-4 w-full" onclick={cancelTrace} variant="destructive">Cancel Trace</Button
+				>
+			</div>
+		{/if}
 	</CardContent>
 </Card>

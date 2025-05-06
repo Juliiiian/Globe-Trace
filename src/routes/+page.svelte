@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { getCurrentTrace, setStore } from '$src/lib/Store';
+	import { getCurrentTrace, getStore, setStore } from '$src/lib/Store';
 	import {
 		Card,
 		CardContent,
@@ -11,10 +11,11 @@
 	import { cn } from '$src/lib/utils/utils';
 	import HopsTable from '$src/lib/components/HopsTable.svelte';
 	import TraceForm from '$src/lib/components/TraceForm.svelte';
-
-	const curTrace = getCurrentTrace();
+	import Badge from '$src/lib/components/ui/badge/badge.svelte';
 
 	let activeTab = $state('table');
+
+	const traces = getStore();
 </script>
 
 <main class="grid-bg m-0 min-h-screen w-full p-0">
@@ -49,18 +50,20 @@
 					<Card
 						class={cn(activeTab === 'table' || !activeTab ? 'block lg:block' : 'hidden lg:block')}
 					>
-						<CardHeader class="pb-3">
-							<CardTitle>Hop Information</CardTitle>
-							<CardDescription>Details of each network hop</CardDescription>
+						<CardHeader class="flex flex-row items-start justify-between pb-3">
+							<div>
+								<CardTitle>Hop Information</CardTitle>
+								<CardDescription>Details of each network hop</CardDescription>
+							</div>
+
+							{#if $traces.api_error}
+								<Badge variant="destructive" class="h-6 p-1">
+									{$traces.api_error}
+								</Badge>
+							{/if}
 						</CardHeader>
 						<CardContent class="p-0">
-							{#if $curTrace != null}
-								<HopsTable trace={$curTrace} />
-							{:else}
-								<div class="flex h-full items-center justify-center p-6 text-muted-foreground">
-									No trace data available. Start a trace to see results.
-								</div>
-							{/if}
+							<HopsTable />
 						</CardContent>
 					</Card>
 				</div>
