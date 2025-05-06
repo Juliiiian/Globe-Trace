@@ -1,34 +1,7 @@
 import { getContext, setContext } from 'svelte';
+import type { Hop, Trace } from './types';
 
 const CTX = 'Settings_CTX';
-
-export type Geo = {
-	city: string;
-	country: string;
-	ip: string;
-	latitude: number;
-	longitude: number;
-	state: string;
-};
-
-export type Hop = {
-	id: string;
-	name: string;
-	ip: string;
-	rtt: number;
-	geo: Geo;
-};
-
-export type Trace = {
-	id: string;
-	name: string;
-	dest_ip: string;
-	max_hops: number;
-	send_rate: number;
-	receive_timeout: number;
-	trace_timeout: number;
-	hops: Hop[];
-};
 
 function Store(initData: Trace[]) {
 	let data: Trace[] = $state(initData);
@@ -56,7 +29,24 @@ function Store(initData: Trace[]) {
 		currentTraceId = id;
 	};
 
-	const addHop = (traceId: string, hop: Hop) => {
+	const addHop = async (traceId: string, hop: Hop) => {
+		try {
+			const res = await fetch(
+				`https://api.hackertarget.com/geoip/?q=${'45.60.15.134'}&output=json`
+			);
+
+			if (res.ok) {
+				const geo = await res.json();
+				console.log(geo);
+
+				hop.geo = geo;
+			} else {
+				console.log('Error fetching geo data:', res.statusText);
+			}
+		} catch (error) {
+			console.log(error);
+		}
+
 		const trace = data.find((t) => t.id === traceId);
 		if (trace) {
 			trace.hops.push(hop);
@@ -64,7 +54,7 @@ function Store(initData: Trace[]) {
 	};
 
 	return {
-		...data,
+		data,
 		startTrace,
 		addHop,
 		get currentTraceId() {

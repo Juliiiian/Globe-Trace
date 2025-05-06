@@ -1,3 +1,4 @@
+use serde_json::json;
 use std::net::IpAddr;
 use std::thread;
 use tauri::{AppHandle, Emitter};
@@ -57,13 +58,18 @@ fn trace(app: AppHandle, ip: String, hops: u8) {
                 msg.seq, msg.ip_addr, msg.hop, msg.rtt
             );
 
-            if let Err(e) = app.emit(
-                "hop",
-                format!(
-                    "Seq: {}, IP: {}, Hop: {:?}, RTT: {:?}",
-                    msg.seq, msg.ip_addr, msg.hop, msg.rtt
-                ),
-            ) {
+            // Create a JSON object for the hop data
+            let hop_data = json!({
+                "seq": msg.seq,
+                "host_name": msg.seq,
+                "ip_addr": msg.ip_addr.to_string(),
+                "hop": msg.hop,
+                "ttl": msg.ttl,
+                "node_type": format!("{:?}", msg.node_type),
+                "rtt": format!("{:?}", msg.rtt),
+            });
+
+            if let Err(e) = app.emit("hop", hop_data) {
                 eprintln!("Failed to emit hop event: {}", e);
             }
         }
