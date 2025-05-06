@@ -9,11 +9,23 @@
 		TableCell
 	} from '$lib/components/ui/table/index.js';
 	import { getCurrentTrace } from '../Store';
+	import Badge from './ui/badge/badge.svelte';
 
 	let trace = getCurrentTrace();
 </script>
 
 {#if $trace}
+	<div class="p-4 pt-0">
+		<Badge variant="secondary">
+			Name: {$trace.name}
+		</Badge>
+		<Badge variant="secondary">
+			IP: {$trace.dest_ip}
+		</Badge>
+		<Badge variant="secondary">
+			Max Hops: {$trace.max_hops}
+		</Badge>
+	</div>
 	<div class="w-full overflow-auto border-t">
 		<Table>
 			<TableHeader>

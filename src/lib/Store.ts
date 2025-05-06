@@ -42,7 +42,7 @@ function Store(initData: Trace[]) {
 					send_rate: trace.send_rate,
 					receive_timeout: trace.receive_timeout,
 					trace_timeout: trace.trace_timeout,
-					is_finished: false,
+					is_finished: 'Running',
 					hops: []
 				}
 			];
@@ -92,11 +92,21 @@ function Store(initData: Trace[]) {
 		});
 	};
 
-	const finishTrace = (traceId: string) => {
+	const finishTrace = (traceId: string, state: 'Error' | 'Finished' | 'Canceled') => {
 		update((data) => {
 			const traceIndex = data.traces.findIndex((t) => t.id === traceId);
 			if (traceIndex !== -1) {
-				data.traces[traceIndex].is_finished = true;
+				data.traces[traceIndex].is_finished = state;
+			}
+			return data;
+		});
+	};
+
+	const setTraceIP = (traceId: string, ip: string) => {
+		update((data) => {
+			const traceIndex = data.traces.findIndex((t) => t.id === traceId);
+			if (traceIndex !== -1) {
+				data.traces[traceIndex].dest_ip = ip;
 			}
 			return data;
 		});
@@ -109,7 +119,8 @@ function Store(initData: Trace[]) {
 
 		startTrace,
 		addHop,
-		finishTrace
+		finishTrace,
+		setTraceIP
 	};
 }
 

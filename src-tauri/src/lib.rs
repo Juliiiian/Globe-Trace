@@ -1,5 +1,6 @@
 use serde_json::json;
 use std::net::IpAddr;
+use std::net::ToSocketAddrs;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread;
@@ -21,15 +22,29 @@ fn trace(app: AppHandle, ip: String, hops: u8, state: State<AppState>) {
     let dst_ip: IpAddr = match ip.parse() {
         Ok(ip) => ip,
         Err(_) => {
-            eprintln!("Invalid IP address: {}", ip);
-            app.emit("trace_fail", "Invalid IP address")
-                .expect("Failed to emit trace_fail event");
-            return;
+            // Attempt to resolve the input as a domain name
+            match ip.to_socket_addrs() {
+                Ok(mut addrs) => {
+                    if let Some(addr) = addrs.next() {
+                        app.emit("trace_dns", addr.ip())
+                            .expect("Failed to emit trace_dns event");
+                        addr.ip()
+                    } else {
+                        app.emit("trace_fail", "No address found for domain")
+                            .expect("Failed to emit trace_fail event");
+                        return;
+                    }
+                }
+                Err(_) => {
+                    app.emit("trace_fail", "Invalid IP address or domain")
+                        .expect("Failed to emit trace_fail event");
+                    return;
+                }
+            }
         }
     };
 
     if dst_ip.is_unspecified() {
-        eprintln!("Unspecified or invalid IP address: {}", dst_ip);
         app.emit("trace_fail", "Invalid or unspecified IP address")
             .expect("Failed to emit trace_fail event");
         return;

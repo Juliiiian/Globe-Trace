@@ -21,9 +21,9 @@
 		activeTab === 'table' || !activeTab ? 'block lg:block  lg:overflow-hidden' : 'hidden lg:block'
 	)}
 >
-	<CardHeader class="flex flex-row items-start justify-between pb-4">
+	<CardHeader class="flex flex-row items-start justify-between pb-2">
 		<div>
-			<CardTitle>Hop Information</CardTitle>
+			<CardTitle>Trace Information</CardTitle>
 			<CardDescription>Details of each network hop</CardDescription>
 		</div>
 
