@@ -12,6 +12,7 @@
 	import HopsTable from '$src/lib/components/HopsTable.svelte';
 	import TraceForm from '$src/lib/components/TraceForm.svelte';
 	import Badge from '$src/lib/components/ui/badge/badge.svelte';
+	import TraceInfo from '$src/lib/components/TraceInfo.svelte';
 
 	let activeTab = $state('table');
 
@@ -31,7 +32,7 @@
 			</div>
 
 			<div class="grid grid-cols-1 gap-6 lg:grid-cols-5">
-				<div class="space-y-6 lg:col-span-2">
+				<div class="flex flex-col gap-6 lg:col-span-2 lg:max-h-[672px] lg:overflow-hidden">
 					<TraceForm></TraceForm>
 					<Card class=" lg:hidden">
 						<CardHeader class="pb-3">
@@ -46,26 +47,7 @@
 							</Tabs>
 						</CardContent>
 					</Card>
-
-					<Card
-						class={cn(activeTab === 'table' || !activeTab ? 'block lg:block' : 'hidden lg:block')}
-					>
-						<CardHeader class="flex flex-row items-start justify-between pb-3">
-							<div>
-								<CardTitle>Hop Information</CardTitle>
-								<CardDescription>Details of each network hop</CardDescription>
-							</div>
-
-							{#if $traces.api_error}
-								<Badge variant="destructive" class="h-6 p-1">
-									{$traces.api_error}
-								</Badge>
-							{/if}
-						</CardHeader>
-						<CardContent class="p-0">
-							<HopsTable />
-						</CardContent>
-					</Card>
+					<TraceInfo {activeTab}></TraceInfo>
 				</div>
 
 				<div
@@ -88,7 +70,6 @@
 
 			<div class="text-center text-xs text-muted-foreground">
 				<p>© {new Date().getFullYear()} Globe Tracer - Visualize network paths across the world</p>
-				<p class="mt-1">Drag to rotate | Scroll to zoom | Double-click to reset view</p>
 			</div>
 		</div>
 	</div>

@@ -27,7 +27,7 @@
 			</TableHeader>
 			<TableBody>
 				{#if !$trace.is_finished && $trace.hops.length === 0}
-					<TableRow class="h-12">
+					<TableRow>
 						<TableCell colspan={5} class="animate-pulse bg-primary-foreground/30 text-center"
 							>Loading...</TableCell
 						>
