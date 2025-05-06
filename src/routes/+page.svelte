@@ -69,7 +69,11 @@
 			</div>
 
 			<div class="text-center text-xs text-muted-foreground">
-				<p>© {new Date().getFullYear()} Globe Tracer - Visualize network paths across the world</p>
+				<p>
+					Made by <a class="underline" href="https://github.com/Juliiiian" target="_blank"
+						>Juliiian</a
+					> with Tauri/Svelte
+				</p>
 			</div>
 		</div>
 	</div>
