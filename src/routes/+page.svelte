@@ -1,13 +1,21 @@
 <script lang="ts">
+	import { setStore } from '$src/lib/Store.svelte';
 	import { invoke } from '@tauri-apps/api/core';
+	import { listen } from '@tauri-apps/api/event';
 
-	let name = $state('');
-	let greetMsg = $state('');
+	const traces = setStore([]);
+
+	let ip = $state('');
+	let error = $state('');
+
+	listen('hop', (event) => {
+		error += (event.payload as string) + '\n';
+	});
 
 	async function greet(event: Event) {
 		event.preventDefault();
 		// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
-		greetMsg = await invoke('greet', { name });
+		error = await invoke('trace', { ip, hops: 200 });
 	}
 </script>
 
@@ -28,10 +36,10 @@
 	<p>Click on the Tauri, Vite, and SvelteKit logos to learn more.</p>
 
 	<form class="row" onsubmit={greet}>
-		<input id="greet-input" placeholder="Enter a name..." bind:value={name} />
+		<input id="greet-input" placeholder="Enter a IP..." bind:value={ip} />
 		<button type="submit">Greet</button>
 	</form>
-	<p>{greetMsg}</p>
+	<p>{error}</p>
 </main>
 
 <style>
